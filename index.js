@@ -162,7 +162,7 @@ function createParticles(x, y, color) {
       size: Math.random() * 5 + 2,
       color: color,
       alpha: 1,
-      life: Math.random() * 30 + 20,
+      life: Math.random() * 20 + 10,
     });
   }
 
@@ -179,7 +179,7 @@ function updateParticles() {
     p.x += p.vx;
     p.y += p.vy;
     p.vy += 0.2; // gravity
-    p.alpha -= 0.02;
+    p.alpha -= 0.05;
     p.life--;
 
     if (p.life <= 0 || p.alpha <= 0) {

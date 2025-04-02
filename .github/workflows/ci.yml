@@ -136,7 +136,7 @@ jobs:
         with:
           script: |
             try {
-              const reviewJson = JSON.parse(${{ steps.claude_review.outputs.review }});
+              const reviewJson = JSON.parse(steps.claude_review.outputs.review);
               
               if (!Array.isArray(reviewJson)) {
                 console.error("Expected review to be an array, got:", typeof reviewJson);
