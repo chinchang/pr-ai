@@ -75,17 +75,17 @@ jobs:
                 -   Do the tests cover all the relevant cases?
                 -   Have the tests passed?
 
-            For each issue, provide a clear and concise comment. Include the file name, line number(s), and a suggestion for how to fix it.  If the code is good, you don't need to say anything.  Focus on what needs to be improved.
+            For each issue, provide a clear and concise comment. Include the file name, line number(s), and a suggestion for how to fix it. If the code is good, you don't need to say anything. Focus on what needs to be improved.
 
-            Example of a good comment:
+            You must respond with a valid JSON array of comment objects. Each comment object should have the following structure:
+            {
+              "file": "path/to/file.ext",
+              "startLine": 42,
+              "endLine": 45,
+              "comment": "Your detailed comment here"
+            }
 
-            >   **File:** "src/app.js"
-            >
-            >   **Line(s):** 42-45
-            >
-            >   **Comment:** Consider adding a unit test for this function to cover the case where \`input\` is an empty string.
-
-            Do not include any preamble or postamble in your response.  Only include the comments.
+            If there are no issues to comment on, return an empty array: []
             `;
 
             const prompt = `${guidelines}
@@ -95,7 +95,7 @@ jobs:
             ${diff}
             \`\`\`
 
-            Provide your feedback as a list of comments.
+            Provide your feedback as a JSON array of comment objects as specified in the guidelines.
             `;
 
             const response = await client.messages.create({
@@ -106,9 +106,25 @@ jobs:
                 ],
             });
 
-              const review = response.content[0].text;
-              core.setOutput('review', review);
-              console.log(review);
+              const reviewText = response.content[0].text;
+              
+              // Extract JSON from the response
+              let reviewJson = [];
+              try {
+                // Look for JSON array in the response
+                const jsonMatch = reviewText.match(/\[\s*\{.*\}\s*\]/s);
+                if (jsonMatch) {
+                  reviewJson = JSON.parse(jsonMatch[0]);
+                } else {
+                  console.log("No valid JSON found in response");
+                }
+              } catch (error) {
+                console.error("Error parsing JSON response:", error);
+                console.log("Raw response:", reviewText);
+              }
+              
+              core.setOutput('review', JSON.stringify(reviewJson));
+              console.log("Review comments:", JSON.stringify(reviewJson, null, 2));
             } catch (error) {
               core.setFailed(`Claude review failed: ${error.message}`);
             }
@@ -118,42 +134,44 @@ jobs:
         if: ${{ steps.claude_review.outputs.review != '' }}
         with:
           script: |
-            const review = `${{ steps.claude_review.outputs.review }}`;
-            const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
-
-            for (const comment of comments) {
-                const fileMatch = comment.match(/File: "(.*?)"/);
-                const linesMatch = comment.match(/Line\(s\): (.*?)$/m);
-                const commentText = comment.substring(comment.indexOf("Comment:") + "Comment:".length).trim();
-
-                if (fileMatch && linesMatch && commentText) {
-                    const file = fileMatch[1];
-                    const lines = linesMatch[1];
-                    let startLine, endLine;
-
-                    if (lines.includes('-')) {
-                        [startLine, endLine] = lines.split('-').map(Number);
-                    } else {
-                        startLine = parseInt(lines, 10);
-                        endLine = startLine;
-                    }
-                    
-                    if(isNaN(startLine) || isNaN(endLine)) {
-                      console.warn(`Skipping invalid line number(s) in comment: ${comment}`);
-                      continue;
-                    }
-
-                    await github.rest.pulls.createReviewComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        pull_number: context.issue.number,
-                        body: commentText,
-                        commit_id: context.sha,
-                        path: file,
-                        start_line: startLine,
-                        end_line: endLine,
-                    });
-                } else {
-                    console.warn(`Skipping invalid comment format: ${comment}`);
+            try {
+              const reviewJson = JSON.parse('${{ steps.claude_review.outputs.review }}');
+              
+              if (!Array.isArray(reviewJson)) {
+                console.error("Expected review to be an array, got:", typeof reviewJson);
+                return;
+              }
+              
+              console.log(`Processing ${reviewJson.length} review comments`);
+              
+              for (const comment of reviewJson) {
+                if (!comment.file || !comment.startLine || !comment.comment) {
+                  console.warn("Skipping invalid comment:", comment);
+                  continue;
                 }
+                
+                const file = comment.file;
+                const startLine = parseInt(comment.startLine, 10);
+                const endLine = parseInt(comment.endLine || comment.startLine, 10);
+                
+                if (isNaN(startLine) || isNaN(endLine)) {
+                  console.warn(`Skipping comment with invalid line numbers:`, comment);
+                  continue;
+                }
+                
+                console.log(`Creating comment for ${file}:${startLine}-${endLine}`);
+                
+                await github.rest.pulls.createReviewComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  body: comment.comment,
+                  commit_id: context.sha,
+                  path: file,
+                  start_line: startLine,
+                  end_line: endLine,
+                });
+              }
+            } catch (error) {
+              core.setFailed(`Failed to post review comments: ${error.message}`);
             }
