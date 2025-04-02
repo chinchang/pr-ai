@@ -1,0 +1,152 @@
+name: AI Code Review with Claude
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed to get the diff
+
+      - name: Get diff
+        id: get_diff
+        run: |
+          git diff --unified=0 ${{ github.event.before }} ${{ github.sha }} > diff.txt
+          echo "diff_file=diff.txt" >> $GITHUB_OUTPUT
+
+      - name: Read diff
+        id: read_diff
+        uses: actions/github-script@v7
+        with:
+          script: |
+            import fs from 'fs';
+            const diffContent = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/' + context.outputs.diff_file, 'utf8');
+            core.exportVariable('DIFF_CONTENT', diffContent);
+
+      - name: Run Claude review
+        id: claude_review
+        uses: actions/github-script@v7
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        with:
+          script: |
+            const { Anthropic } = require('@anthropic-ai/sdk');
+            const core = require('@actions/core');
+
+            const client = new Anthropic({
+                apiKey: process.env.ANTHROPIC_API_KEY,
+            });
+
+            const diff = process.env.DIFF_CONTENT;
+            const guidelines = `
+            You are a code reviewer providing feedback on a pull request. 
+            Follow these guidelines:
+
+            -   **Overall Code Quality**:
+                -   Is the code clean, well-structured, and easy to understand?
+                -   Does it follow the principles of SOLID?
+                -   Are there any unnecessary comments or complexity?
+            -   **Functionality**:
+                -   Does the code achieve the intended purpose?
+                -   Are there any edge cases that are not handled?
+                -   Are there any potential bugs or errors?
+            -   **Security**:
+                -   Are there any security vulnerabilities (e.g., injection attacks, data leaks)?
+                -   Is sensitive data handled properly?
+            -   **Performance**:
+                -   Is the code performant and efficient?
+                -   Are there any potential performance bottlenecks?
+            -   **Style**:
+                -   Does the code adhere to the project's coding style guidelines? (Check for naming conventions, indentation, etc.)
+                -   Is the code consistent with the rest of the codebase?
+            -   **Documentation**:
+                -   Is the code well-documented?
+                -   Are there comments for complex or non-obvious logic?
+                -   Is the documentation up-to-date?
+            -   **Testing**:
+                -   Are there sufficient tests for the changes?
+                -   Do the tests cover all the relevant cases?
+                -   Have the tests passed?
+
+            For each issue, provide a clear and concise comment. Include the file name, line number(s), and a suggestion for how to fix it.  If the code is good, you don't need to say anything.  Focus on what needs to be improved.
+
+            Example of a good comment:
+
+            >   **File:** \`src/app.js\`
+            >
+            >   **Line(s):** 42-45
+            >
+            >   **Comment:** Consider adding a unit test for this function to cover the case where \`input\` is an empty string.
+
+            Do not include any preamble or postamble in your response.  Only include the comments.
+            `;
+
+            const prompt = `${guidelines}
+
+            Here is the diff of the code changes:
+            \`\`\`diff
+            ${diff}
+            \`\`\`
+
+            Provide your feedback as a list of comments.
+            `;
+
+            const response = await client.messages.create({
+                model: "claude-3-sonnet-20240229",
+                messages: [
+                    { role: "user", content: prompt },
+                ],
+            });
+
+            const review = response.content[0].text;
+            core.setOutput('review', review);
+
+      - name: Post review comments
+        uses: actions/github-script@v7
+        if: ${{ steps.claude_review.outputs.review != '' }}
+        with:
+          script: |
+            const core = require('@actions/core');
+            const review = core.getState('review');  // Corrected line
+            const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
+
+            for (const comment of comments) {
+                const fileMatch = comment.match(/File: `(.*?)`/);
+                const linesMatch = comment.match(/Line\(s\): (.*?)$/m);
+                const commentText = comment.substring(comment.indexOf("Comment:") + "Comment:".length).trim();
+
+                if (fileMatch && linesMatch && commentText) {
+                    const file = fileMatch[1];
+                    const lines = linesMatch[1];
+                    let startLine, endLine;
+
+                    if (lines.includes('-')) {
+                        [startLine, endLine] = lines.split('-').map(Number);
+                    } else {
+                        startLine = parseInt(lines, 10);
+                        endLine = startLine;
+                    }
+                    
+                    if(isNaN(startLine) || isNaN(endLine)) {
+                      console.warn(`Skipping invalid line number(s) in comment: ${comment}`);
+                      continue;
+                    }
+
+                    await github.rest.pulls.createReviewComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        pull_number: context.issue.number,
+                        body: commentText,
+                        commit_id: context.sha,
+                        path: file,
+                        start_line: startLine,
+                        end_line: endLine,
+                    });
+                } else {
+                    console.warn(`Skipping invalid comment format: ${comment}`);
+                }
+            }
