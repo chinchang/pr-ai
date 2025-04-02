@@ -24,7 +24,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const diffContent = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/' + process.env.GITHUB_OUTPUT, 'utf8');
+            const diffContent = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/diff.txt', 'utf8');
             core.setOutput('DIFF_CONTENT', diffContent);
 
       - name: Run Claude review
@@ -111,7 +111,7 @@ jobs:
         with:
           script: |
             const core = require('@actions/core');
-            const review = core.getState('review');  // Corrected line
+            const review = core.getInput('review') || steps.claude_review.outputs.review;
             const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
 
             for (const comment of comments) {
