@@ -172,15 +172,15 @@ jobs:
                 }
                 
                 console.log(`Creating comment for ${file}:${line}`);
-                const cid2 = '${{ github.event.pull_request.head.sha }}';
-                const cid = github.event.pull_request.head.sha;
+                const cid2 = '${{ github.event.pull_request.head.sha }}'; // works
+                const cid = github.event; // this is the commit id
 
                 await github.rest.pulls.createReviewComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   pull_number: context.issue.number,
                   body: comment.comment,
-                  commit_id: github.event.pull_request.head.sha,
+                  commit_id: cid2,
                   path: file,
                   line: line,
                   side: 'RIGHT'
