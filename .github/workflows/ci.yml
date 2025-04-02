@@ -25,6 +25,7 @@ jobs:
           script: |
             const fs = require('fs');
             const diffContent = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/diff.txt', 'utf8');
+            console.log(diffContent);
             core.setOutput('DIFF_CONTENT', diffContent);
 
       - name: Setup Node.js
@@ -123,7 +124,7 @@ jobs:
         if: ${{ steps.claude_review.outputs.review != '' }}
         with:
           script: |
-            const review = ${{ steps.claude_review.outputs.review }};
+            const review = `${{ steps.claude_review.outputs.review }}`;
             const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
 
             for (const comment of comments) {
