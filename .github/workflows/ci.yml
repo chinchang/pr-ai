@@ -178,7 +178,7 @@ jobs:
                   repo: context.repo.repo,
                   pull_number: context.issue.number,
                   body: comment.comment,
-                  commit_id: context.sha,
+                  commit_id: github.event.pull_request.head.sha,
                   path: file,
                   line: line,
                   side: 'RIGHT'
