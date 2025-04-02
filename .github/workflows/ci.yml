@@ -27,6 +27,14 @@ jobs:
             const diffContent = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/diff.txt', 'utf8');
             core.setOutput('DIFF_CONTENT', diffContent);
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install @anthropic-ai/sdk
+
       - name: Run Claude review
         id: claude_review
         uses: actions/github-script@v7
@@ -37,70 +45,70 @@ jobs:
             try {
               const { Anthropic } = require('@anthropic-ai/sdk');
 
-              const client = new Anthropic({
-                  apiKey: process.env.ANTHROPIC_API_KEY,
-              });
+            const client = new Anthropic({
+                apiKey: process.env.ANTHROPIC_API_KEY,
+            });
 
-              const diff = process.env.DIFF_CONTENT;
-              const guidelines = `
-              You are a code reviewer providing feedback on a pull request. 
-              Follow these guidelines:
+            const diff = process.env.DIFF_CONTENT;
+            const guidelines = `
+            You are a code reviewer providing feedback on a pull request. 
+            Follow these guidelines:
 
-              -   **Overall Code Quality**:
-                  -   Is the code clean, well-structured, and easy to understand?
-                  -   Does it follow the principles of SOLID?
-                  -   Are there any unnecessary comments or complexity?
-              -   **Functionality**:
-                  -   Does the code achieve the intended purpose?
-                  -   Are there any edge cases that are not handled?
-                  -   Are there any potential bugs or errors?
-              -   **Security**:
-                  -   Are there any security vulnerabilities (e.g., injection attacks, data leaks)?
-                  -   Is sensitive data handled properly?
-              -   **Performance**:
-                  -   Is the code performant and efficient?
-                  -   Are there any potential performance bottlenecks?
-              -   **Style**:
-                  -   Does the code adhere to the project's coding style guidelines? (Check for naming conventions, indentation, etc.)
-                  -   Is the code consistent with the rest of the codebase?
-              -   **Documentation**:
-                  -   Is the code well-documented?
-                  -   Are there comments for complex or non-obvious logic?
-                  -   Is the documentation up-to-date?
-              -   **Testing**:
-                  -   Are there sufficient tests for the changes?
-                  -   Do the tests cover all the relevant cases?
-                  -   Have the tests passed?
+            -   **Overall Code Quality**:
+                -   Is the code clean, well-structured, and easy to understand?
+                -   Does it follow the principles of SOLID?
+                -   Are there any unnecessary comments or complexity?
+            -   **Functionality**:
+                -   Does the code achieve the intended purpose?
+                -   Are there any edge cases that are not handled?
+                -   Are there any potential bugs or errors?
+            -   **Security**:
+                -   Are there any security vulnerabilities (e.g., injection attacks, data leaks)?
+                -   Is sensitive data handled properly?
+            -   **Performance**:
+                -   Is the code performant and efficient?
+                -   Are there any potential performance bottlenecks?
+            -   **Style**:
+                -   Does the code adhere to the project's coding style guidelines? (Check for naming conventions, indentation, etc.)
+                -   Is the code consistent with the rest of the codebase?
+            -   **Documentation**:
+                -   Is the code well-documented?
+                -   Are there comments for complex or non-obvious logic?
+                -   Is the documentation up-to-date?
+            -   **Testing**:
+                -   Are there sufficient tests for the changes?
+                -   Do the tests cover all the relevant cases?
+                -   Have the tests passed?
 
-              For each issue, provide a clear and concise comment. Include the file name, line number(s), and a suggestion for how to fix it.  If the code is good, you don't need to say anything.  Focus on what needs to be improved.
+            For each issue, provide a clear and concise comment. Include the file name, line number(s), and a suggestion for how to fix it.  If the code is good, you don't need to say anything.  Focus on what needs to be improved.
 
-              Example of a good comment:
+            Example of a good comment:
 
-              >   **File:** \`src/app.js\`
-              >
-              >   **Line(s):** 42-45
-              >
-              >   **Comment:** Consider adding a unit test for this function to cover the case where \`input\` is an empty string.
+            >   **File:** \`src/app.js\`
+            >
+            >   **Line(s):** 42-45
+            >
+            >   **Comment:** Consider adding a unit test for this function to cover the case where \`input\` is an empty string.
 
-              Do not include any preamble or postamble in your response.  Only include the comments.
-              `;
+            Do not include any preamble or postamble in your response.  Only include the comments.
+            `;
 
-              const prompt = `${guidelines}
+            const prompt = `${guidelines}
 
-              Here is the diff of the code changes:
-              \`\`\`diff
-              ${diff}
-              \`\`\`
+            Here is the diff of the code changes:
+            \`\`\`diff
+            ${diff}
+            \`\`\`
 
-              Provide your feedback as a list of comments.
-              `;
+            Provide your feedback as a list of comments.
+            `;
 
-              const response = await client.messages.create({
-                  model: "claude-3-sonnet-20240229",
-                  messages: [
-                      { role: "user", content: prompt },
-                  ],
-              });
+            const response = await client.messages.create({
+                model: "claude-3-sonnet-20240229",
+                messages: [
+                    { role: "user", content: prompt },
+                ],
+            });
 
               const review = response.content[0].text;
               core.setOutput('review', review);
