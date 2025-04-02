@@ -172,7 +172,9 @@ jobs:
                 }
                 
                 console.log(`Creating comment for ${file}:${line}`);
-                console.log(github.event);
+                const cid2 = '${{ github.event.pull_request.head.sha }}';
+                const cid = github.event.pull_request.head.sha;
+
                 await github.rest.pulls.createReviewComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
