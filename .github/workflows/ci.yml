@@ -113,6 +113,7 @@ jobs:
 
               const review = response.content[0].text;
               core.setOutput('review', review);
+              console.log(review);
             } catch (error) {
               core.setFailed(`Claude review failed: ${error.message}`);
             }
@@ -122,7 +123,7 @@ jobs:
         if: ${{ steps.claude_review.outputs.review != '' }}
         with:
           script: |
-            const review = core.getInput('review') || steps.claude_review.outputs.review;
+            const review = ${{ steps.claude_review.outputs.review }};
             const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
 
             for (const comment of comments) {
