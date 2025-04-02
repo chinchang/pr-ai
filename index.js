@@ -19,6 +19,8 @@ const COLORS = [
   "#FFA500",
 ];
 
+const b = document.body;
+
 // Tetromino shapes
 const SHAPES = [
   [[1, 1, 1, 1]], // I
@@ -107,6 +109,9 @@ function mergePiece() {
 // Clear completed lines
 function clearLines() {
   let linesCleared = 0;
+  b.style.transform = `translate(${Math.random() * 100}px, ${
+    Math.random() * 100
+  }px)`;
 
   for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
     if (board[y].every((cell) => cell !== 0)) {
