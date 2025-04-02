@@ -107,6 +107,7 @@ jobs:
             });
 
               const reviewText = response.content[0].text;
+              console.log(reviewText);
               
               // Extract JSON from the response
               let reviewJson = [];
