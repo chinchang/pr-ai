@@ -110,7 +110,12 @@ jobs:
               console.log(reviewText);
               
               // Extract JSON from the response
-              let reviewJson = [];
+              let reviewJson = [{
+                "file": "index.js",
+                "startLine": 1,
+                "endLine": 1,
+                "comment": "This is a 'test' comment"
+              }];
               try {
                 // Look for JSON array in the response
                 const jsonMatch = reviewText.match(/\[\s*\{.*\}\s*\]/s);
