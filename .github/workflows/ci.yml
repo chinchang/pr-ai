@@ -133,10 +133,12 @@ jobs:
       - name: Post review comments
         uses: actions/github-script@v7
         if: ${{ steps.claude_review.outputs.review != '' }}
+        env:
+          REVIEW_JSON: ${{ steps.claude_review.outputs.review }}
         with:
           script: |
             try {
-              const reviewJson = JSON.parse(steps.claude_review.outputs.review);
+              const reviewJson = JSON.parse(process.env.REVIEW_JSON);
               
               if (!Array.isArray(reviewJson)) {
                 console.error("Expected review to be an array, got:", typeof reviewJson);
