@@ -79,7 +79,7 @@ jobs:
 
             Example of a good comment:
 
-            >   **File:** \`src/app.js\`
+            >   **File:** "src/app.js"
             >
             >   **Line(s):** 42-45
             >
@@ -122,7 +122,7 @@ jobs:
             const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
 
             for (const comment of comments) {
-                const fileMatch = comment.match(/File: `(.*?)`/);
+                const fileMatch = comment.match(/File: "(.*?)"/);
                 const linesMatch = comment.match(/Line\(s\): (.*?)$/m);
                 const commentText = comment.substring(comment.indexOf("Comment:") + "Comment:".length).trim();
 
