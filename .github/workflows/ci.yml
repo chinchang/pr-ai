@@ -172,7 +172,7 @@ jobs:
                 }
                 
                 console.log(`Creating comment for ${file}:${line}`);
-                
+                console.log(github.event);
                 await github.rest.pulls.createReviewComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
