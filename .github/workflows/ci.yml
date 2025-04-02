@@ -122,7 +122,6 @@ jobs:
         if: ${{ steps.claude_review.outputs.review != '' }}
         with:
           script: |
-            const core = require('@actions/core');
             const review = core.getInput('review') || steps.claude_review.outputs.review;
             const comments = review.split('\n\n').filter(comment => comment.trim() !== '');
 
