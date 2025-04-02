@@ -20,6 +20,7 @@ const COLORS = [
 ];
 
 const b = document.body;
+b.style.backgroundColor = "#000000";
 
 // Tetromino shapes
 const SHAPES = [
